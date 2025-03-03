@@ -12,6 +12,7 @@
     <script src="https://code.highcharts.com/modules/exporting.js"></script>
     <script src="https://code.highcharts.com/modules/export-data.js"></script>
     <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <script src="https://www.unpkg.com/@eohjsc/era-widget@1.0.14/src/index.js"></script>
 
     <style>
         .dashboard-container {
@@ -37,7 +38,7 @@
 
         .water-level-container {
             width: 100%;
-            height: 520px; /* Chiều cao bằng 2 gauge */
+            height: 520px;
         }
     </style>
 </head>
@@ -57,14 +58,35 @@
     </div>
 
     <script>
+        // Khởi tạo Era Widget
+        const eraWidget = new EraWidget();
+        let configTemp, configWater, configTDS, configPH, configConductivity;
+        let TemperatureValue = 0, WaterLevelValue = 0, TDSValue = 0, PHValue = 0, ConductivityValue = 0;
+
+        eraWidget.onConfiguration((configuration) => {
+            // Gán cấu hình từ Era
+            configTemp = configuration.realtime_configs[0];
+            configWater = configuration.realtime_configs[3];
+            configTDS = configuration.realtime_configs[1];
+            configPH = configuration.realtime_configs[2];
+            configConductivity = configuration.realtime_configs[4];
+        });
+
+        eraWidget.onValues((values) => {
+            // Cập nhật giá trị từ Era
+            if (configTemp && values[configTemp.id]) TemperatureValue = values[configTemp.id].value;
+            if (configWater && values[configWater.id]) WaterLevelValue = values[configWater.id].value;
+            if (configTDS && values[configTDS.id]) TDSValue = values[configTDS.id].value;
+            if (configPH && values[configPH.id]) PHValue = values[configPH.id].value;
+            if (configConductivity && values[configConductivity.id]) ConductivityValue = values[configConductivity.id].value;
+        });
+
+        eraWidget.ready();
+
         // Cấu hình chung cho Gauge
         const gaugeOptions = {
-            chart: {
-                type: 'solidgauge'
-            },
-
+            chart: { type: 'solidgauge' },
             title: null,
-
             pane: {
                 center: ['50%', '85%'],
                 size: '100%',
@@ -78,56 +100,31 @@
                     shape: 'arc'
                 }
             },
-
-            exporting: {
-                enabled: false
-            },
-
-            tooltip: {
-                enabled: false
-            },
-
+            exporting: { enabled: false },
+            tooltip: { enabled: false },
             yAxis: {
-                stops: [
-                    [0.1, '#55BF3B'], // Green
-                    [0.5, '#DDDF0D'], // Yellow
-                    [0.9, '#DF5353']  // Red
-                ],
+                stops: [[0.1, '#55BF3B'], [0.5, '#DDDF0D'], [0.9, '#DF5353']],
                 lineWidth: 0,
                 tickWidth: 0,
                 minorTickInterval: null,
                 tickAmount: 2,
-                title: null,
-                labels: {
-                    y: 16
-                }
+                labels: { y: 16 }
             },
-
             plotOptions: {
                 solidgauge: {
                     borderRadius: 3,
-                    dataLabels: {
-                        y: 5,
-                        borderWidth: 0,
-                        useHTML: true
-                    }
+                    dataLabels: { y: 5, borderWidth: 0, useHTML: true }
                 }
             }
         };
 
-        function createGauge(container, maxVal, unit, color) {
+        function createGauge(container, maxVal, unit, color, title) {
             return Highcharts.chart(container, Highcharts.merge(gaugeOptions, {
-                yAxis: {
-                    min: 0,
-                    max: maxVal
-                },
-
-                credits: {
-                    enabled: false
-                },
-
+                yAxis: { min: 0, max: maxVal, title: { text: title, y: -50 } },
+                credits: { enabled: false },
                 series: [{
-                    data: [Math.random() * maxVal],
+                    name: title,
+                    data: [0], // Khởi tạo với giá trị 0, sẽ cập nhật từ Era
                     dataLabels: {
                         format: `<div style="text-align:center"><span style="font-size:25px; color:${color}">{y:.1f}</span> ${unit}</div>`
                     }
@@ -135,65 +132,41 @@
             }));
         }
 
-        // Khởi tạo 4 gauge cho từng thông số
-        const gaugeTemp = createGauge('gauge-temp', 100, '°C', 'red');
-        const gaugeTDS = createGauge('gauge-tds', 500, 'ppm', 'blue');
-        const gaugeTurbidity = createGauge('gauge-turbidity', 100, 'NTU', 'green');
-        const gaugePH = createGauge('gauge-ph', 14, 'pH', 'purple');
-
-        // Cập nhật dữ liệu mỗi 2 giây
-        setInterval(() => {
-            gaugeTemp.series[0].points[0].update(Math.random() * 100);
-            gaugeTDS.series[0].points[0].update(Math.random() * 500);
-            gaugeTurbidity.series[0].points[0].update(Math.random() * 100);
-            gaugePH.series[0].points[0].update(Math.random() * 14);
-        }, 2000);
+        // Tạo các gauge cho từng thông số
+        const gaugeTemp = createGauge('gauge-temp', 100, '°C', 'red', 'Nhiệt độ');
+        const gaugeTDS = createGauge('gauge-tds', 500, 'ppm', 'blue', 'TDS');
+        const gaugeTurbidity = createGauge('gauge-turbidity', 100, 'NTU', 'green', 'Độ đục');
+        const gaugePH = createGauge('gauge-ph', 14, 'pH', 'purple', 'pH');
 
         // Biểu đồ cột Water Level
         const waterLevelChart = Highcharts.chart('water-level-chart', {
-            chart: {
-                type: 'column',
-                inverted: false
-            },
-            title: {
-                text: 'Water Level (%)'
-            },
-            xAxis: {
-                categories: ['Tank']
-            },
-            yAxis: {
-                min: 0,
-                max: 100,
-                title: {
-                    text: 'Percentage'
-                }
-            },
+            chart: { type: 'column', inverted: false },
+            title: { text: 'Mức nước còn lại (%)', align: 'center' },
+            xAxis: { categories: ['Bể chứa'] },
+            yAxis: { min: 0, max: 100, title: { text: 'Phần trăm (%)' } },
             plotOptions: {
                 column: {
                     borderRadius: '10%',
                     dataLabels: {
                         enabled: true,
                         format: '{y:.1f}%',
-                        style: {
-                            fontSize: '14px',
-                            fontWeight: 'bold'
-                        }
+                        style: { fontSize: '14px', fontWeight: 'bold' }
                     }
                 }
             },
-            series: [{
-                name: 'Water Level',
-                data: [Math.random() * 100],
-                color: '#2196F3'
-            }]
+            series: [{ name: 'Mức nước', data: [0], color: '#2196F3' }] // Khởi tạo với giá trị 0
         });
 
-        // Cập nhật dữ liệu mỗi 2 giây
+        // Cập nhật dữ liệu từ Era mỗi 2 giây
         setInterval(() => {
-            waterLevelChart.series[0].points[0].update(Math.random() * 100);
+            gaugeTemp.series[0].points[0].update(TemperatureValue);
+            gaugeTDS.series[0].points[0].update(TDSValue);
+            gaugeTurbidity.series[0].points[0].update(ConductivityValue);
+            gaugePH.series[0].points[0].update(PHValue);
+            waterLevelChart.series[0].points[0].update(WaterLevelValue);
         }, 2000);
-
     </script>
 
 </body>
 </html>
+    
