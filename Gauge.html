@@ -14,71 +14,98 @@
     <script src="https://code.highcharts.com/modules/accessibility.js"></script>
 
     <style>
-        body {
-            font-family: Arial, sans-serif;
-        }
-        .container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 20px;
-            width: 90%;
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            max-width: 1000px;
             margin: auto;
+            align-items: center;
         }
-        .gauge-container {
+
+        .gauges-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 30px;
-            width: 65%;
+            grid-template-rows: repeat(2, auto);
+            gap: 15px;
         }
-        .gauge {
+
+        .chart-container {
             width: 100%;
             height: 250px;
         }
-        .water-chart {
-            width: 30%;
-            height: 500px;
+
+        .water-level-container {
+            width: 100%;
+            height: 520px; /* Chiều cao bằng 2 gauge */
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- 4 Gauge hiển thị cảm biến -->
-        <div class="gauge-container">
-            <div id="temp-gauge" class="gauge"></div>
-            <div id="tds-gauge" class="gauge"></div>
-            <div id="turbidity-gauge" class="gauge"></div>
-            <div id="ph-gauge" class="gauge"></div>
+    <div class="dashboard-container">
+        <!-- Gauge Charts -->
+        <div class="gauges-container">
+            <div id="gauge-temp" class="chart-container"></div>
+            <div id="gauge-tds" class="chart-container"></div>
+            <div id="gauge-turbidity" class="chart-container"></div>
+            <div id="gauge-ph" class="chart-container"></div>
         </div>
 
-        <!-- Biểu đồ cột hiển thị mức nước -->
-        <div id="water-chart" class="water-chart"></div>
+        <!-- Water Level Column Chart -->
+        <div id="water-level-chart" class="water-level-container"></div>
     </div>
 
     <script>
-        // Cấu hình chung của gauge
+        // Cấu hình chung cho Gauge
         const gaugeOptions = {
-            chart: { type: 'solidgauge' },
+            chart: {
+                type: 'solidgauge'
+            },
+
             title: null,
+
             pane: {
                 center: ['50%', '85%'],
-                size: '140%',
+                size: '100%',
                 startAngle: -90,
                 endAngle: 90,
-                background: { innerRadius: '60%', outerRadius: '100%', shape: 'arc' }
+                background: {
+                    backgroundColor: Highcharts.defaultOptions.legend.backgroundColor || '#fafafa',
+                    borderRadius: 5,
+                    innerRadius: '60%',
+                    outerRadius: '100%',
+                    shape: 'arc'
+                }
             },
-            exporting: { enabled: false },
-            tooltip: { enabled: false },
+
+            exporting: {
+                enabled: false
+            },
+
+            tooltip: {
+                enabled: false
+            },
+
             yAxis: {
+                stops: [
+                    [0.1, '#55BF3B'], // Green
+                    [0.5, '#DDDF0D'], // Yellow
+                    [0.9, '#DF5353']  // Red
+                ],
                 lineWidth: 0,
                 tickWidth: 0,
                 minorTickInterval: null,
                 tickAmount: 2,
-                labels: { y: 16 }
+                title: null,
+                labels: {
+                    y: 16
+                }
             },
+
             plotOptions: {
                 solidgauge: {
+                    borderRadius: 3,
                     dataLabels: {
                         y: 5,
                         borderWidth: 0,
@@ -88,50 +115,84 @@
             }
         };
 
-        // Tạo 4 gauge
-        const tempGauge = Highcharts.chart('temp-gauge', Highcharts.merge(gaugeOptions, {
-            yAxis: { min: 0, max: 100, title: { text: 'Nhiệt độ (°C)' } },
-            series: [{ name: 'Nhiệt độ', data: [30], dataLabels: { format: '<b>{y}°C</b>' } }]
-        }));
+        function createGauge(container, maxVal, unit, color) {
+            return Highcharts.chart(container, Highcharts.merge(gaugeOptions, {
+                yAxis: {
+                    min: 0,
+                    max: maxVal
+                },
 
-        const tdsGauge = Highcharts.chart('tds-gauge', Highcharts.merge(gaugeOptions, {
-            yAxis: { min: 0, max: 500, title: { text: 'TDS (ppm)' } },
-            series: [{ name: 'TDS', data: [150], dataLabels: { format: '<b>{y} ppm</b>' } }]
-        }));
+                credits: {
+                    enabled: false
+                },
 
-        const turbidityGauge = Highcharts.chart('turbidity-gauge', Highcharts.merge(gaugeOptions, {
-            yAxis: { min: 0, max: 100, title: { text: 'Độ đục (NTU)' } },
-            series: [{ name: 'Độ đục', data: [20], dataLabels: { format: '<b>{y} NTU</b>' } }]
-        }));
+                series: [{
+                    data: [Math.random() * maxVal],
+                    dataLabels: {
+                        format: `<div style="text-align:center"><span style="font-size:25px; color:${color}">{y:.1f}</span> ${unit}</div>`
+                    }
+                }]
+            }));
+        }
 
-        const phGauge = Highcharts.chart('ph-gauge', Highcharts.merge(gaugeOptions, {
-            yAxis: { min: 0, max: 14, title: { text: 'pH' } },
-            series: [{ name: 'pH', data: [7], dataLabels: { format: '<b>{y}</b>' } }]
-        }));
+        // Khởi tạo 4 gauge cho từng thông số
+        const gaugeTemp = createGauge('gauge-temp', 100, '°C', 'red');
+        const gaugeTDS = createGauge('gauge-tds', 500, 'ppm', 'blue');
+        const gaugeTurbidity = createGauge('gauge-turbidity', 100, 'NTU', 'green');
+        const gaugePH = createGauge('gauge-ph', 14, 'pH', 'purple');
 
-        // Biểu đồ cột hiển thị mức nước còn lại
-        const waterChart = Highcharts.chart('water-chart', {
-            chart: { type: 'column' },
-            title: { text: 'Mức nước còn lại (%)', align: 'center' },
-            xAxis: { categories: ['Bể chứa'] },
-            yAxis: { min: 0, max: 100, title: { text: 'Phần trăm (%)' } },
-            series: [{ name: 'Mức nước', data: [50], color: 'blue', dataLabels: { enabled: true, format: '{y}%' } }]
+        // Cập nhật dữ liệu mỗi 2 giây
+        setInterval(() => {
+            gaugeTemp.series[0].points[0].update(Math.random() * 100);
+            gaugeTDS.series[0].points[0].update(Math.random() * 500);
+            gaugeTurbidity.series[0].points[0].update(Math.random() * 100);
+            gaugePH.series[0].points[0].update(Math.random() * 14);
+        }, 2000);
+
+        // Biểu đồ cột Water Level
+        const waterLevelChart = Highcharts.chart('water-level-chart', {
+            chart: {
+                type: 'column',
+                inverted: false
+            },
+            title: {
+                text: 'Water Level (%)'
+            },
+            xAxis: {
+                categories: ['Tank']
+            },
+            yAxis: {
+                min: 0,
+                max: 100,
+                title: {
+                    text: 'Percentage'
+                }
+            },
+            plotOptions: {
+                column: {
+                    borderRadius: '10%',
+                    dataLabels: {
+                        enabled: true,
+                        format: '{y:.1f}%',
+                        style: {
+                            fontSize: '14px',
+                            fontWeight: 'bold'
+                        }
+                    }
+                }
+            },
+            series: [{
+                name: 'Water Level',
+                data: [Math.random() * 100],
+                color: '#2196F3'
+            }]
         });
 
         // Cập nhật dữ liệu mỗi 2 giây
         setInterval(() => {
-            let newTemp = Math.random() * 100;
-            let newTDS = Math.random() * 500;
-            let newTurbidity = Math.random() * 100;
-            let newpH = Math.random() * 14;
-            let newWaterLevel = Math.random() * 100;
-
-            tempGauge.series[0].points[0].update(newTemp);
-            tdsGauge.series[0].points[0].update(newTDS);
-            turbidityGauge.series[0].points[0].update(newTurbidity);
-            phGauge.series[0].points[0].update(newpH);
-            waterChart.series[0].points[0].update(newWaterLevel);
+            waterLevelChart.series[0].points[0].update(Math.random() * 100);
         }, 2000);
+
     </script>
 
 </body>
